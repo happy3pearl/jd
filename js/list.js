@@ -1,13 +1,13 @@
 class List {
     constructor() {
+
         this.getDate();
         this.bindEve();
-
     }
     /******封装绑定事件的方法******/
     bindEve() {
         // 给ul绑定点击事件,点击之后加入购物车,则要封装加入购物车的方法在此调用
-        this.$('.sk_bd ul').addEventListener('click', this.addCart.bind(this))
+        this.$('.sk_bd ul').addEventListener('click', this.checkLogin.bind(this))
     }
     /*****获取数据的方法******/
     // 使用async await等待后面的promise解包完成,拿到最后结果
@@ -22,7 +22,7 @@ class List {
         let html = '';
         data.list.forEach(goods => {
             // console.log(goods);
-            html += `<li class="sk_goods">
+            html += `<li class="sk_goods" data-id="${goods.goods_id}">
             <a href="#none">
                 <img src="${goods.img_big_logo}" alt="">
             </a>
@@ -48,17 +48,66 @@ class List {
         this.$('.sk_bd ul').innerHTML += html;
 
     }
-    /******封装加入购物车的方法******/
-    addCart(eve) {
+    /******封装检查是否登录的方法******/
+    checkLogin(eve) {
         // console.log(this);
         // 获取事件源,判断点击的是否为a标签
         // console.log(eve.target);
         if (eve.target.nodeName != 'A' || eve.target.className != 'sk_goods_buy') return;
         // 判断用户是否登录,如果local中有token,表示登录,没有则表示未登录
-        let token=localStorage.getItem('token');
+        let token = localStorage.getItem('token');
         // console.log(token);
         // 没有token表示未登录,跳转到登录页面
-        if(!token) location.assign('./login.html?ReturnUrl=./list.html')
+        if (!token) location.assign('./login.html?ReturnUrl=./list.html');
+
+        // 如果用户已经登录,此时就需要将商品加入购物车
+        // 获取商品id和用户id
+        let goodsId = eve.target.parentNode.dataset.id;
+        // console.log(goodsId);
+        let userId = localStorage.getItem('user_id');
+
+
+        this.addCartGoods(goodsId, userId);
+
+    }
+    // 封装一个加入购物车的方法
+    addCartGoods(gId, uId) {
+        // console.log(gId,uId);
+        // 给添加购物车接口,发送请求
+        // 调用购物车接口,后台要验证是否为登录状态,需要传递token
+        const AUTH_TOKEN = localStorage.getItem('token');
+        axios.defaults.headers.common['authorization'] = AUTH_TOKEN;
+        axios.defaults.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        let param = `id=${uId}&goodsId=${gId}`;
+        axios.post('http://localhost:8888/cart/add', param).then(({ data, status }) => {
+            console.log(data, status);
+            // 判断添加购物车是否成功
+            if (status == 200 && data.code == 1) {
+                layer.open({
+                    title: '商品添加成功'
+                    , content: '进购物车看看吗?'
+                    , btn: ['留下', '去吧']
+                    , btn2: function (index, layero) {
+                        // console.log('去购物车了....');
+                        location.assign('./cart.html')
+                    }
+                });
+            } else if(status==200&data.code==401){//如果登录过期,则重新登录
+                // 清除local中存的token和userid
+                localStorage.removeItem('token');
+                localStorage.removeItem('user_id');
+                // 跳转到登录页面
+                location.assign('./login.html?ReturnUrl=./list.html')
+            }else {
+                layer.open({
+                    title: '失败提示框'
+                    , content: '商品添加失败'
+                    ,time:3000
+                });
+            }
+
+
+        })
     }
 
     /******封装获取节点的方法*******/

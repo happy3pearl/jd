@@ -5,7 +5,7 @@ class Login {
         this.$('.over').addEventListener('click', this.islogin)
 
         // console.log(location.search.split('='));
-        // 判断当前是否有回调函数
+        // 判断当前是否有回调页面
         let search=location.search;
         if(search){
             this.url=search.split('=')[1];
@@ -45,8 +45,6 @@ class Login {
                 }
             }
         })
-
-
     }
 
     
