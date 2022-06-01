@@ -3,18 +3,25 @@ class List {
 
         this.getDate();
         this.bindEve();
+        // 默认页码
+        this.currentPage = 1;
+        // 使用锁
+        this.lock = false;
     }
     /******封装绑定事件的方法******/
     bindEve() {
         // 给ul绑定点击事件,点击之后加入购物车,则要封装加入购物车的方法在此调用
         this.$('.sk_bd ul').addEventListener('click', this.checkLogin.bind(this))
+
+        // 滚动条事件
+        window.addEventListener('scroll', this.lazyLoader)
     }
     /*****获取数据的方法******/
     // 使用async await等待后面的promise解包完成,拿到最后结果
-    async getDate() {
+    async getDate(page = 1) {
         // console.log(1111);
         // 1.发送ajax get请求,获取商品列表的相关数据
-        let { status, data } = await axios.get('http://localhost:8888/goods/list');
+        let { status, data } = await axios.get('http://localhost:8888/goods/list?current=' + page);
         // console.log(status, data);
         // 2.判断请求状态是否成功
         if (status != 200 && data.code != 1) throw new Error('获取数据失败...');
@@ -92,22 +99,54 @@ class List {
                         location.assign('./cart.html')
                     }
                 });
-            } else if(status==200&data.code==401){//如果登录过期,则重新登录
+            } else if (status == 200 & data.code == 401) {//如果登录过期,则重新登录
                 // 清除local中存的token和userid
                 localStorage.removeItem('token');
                 localStorage.removeItem('user_id');
                 // 跳转到登录页面
                 location.assign('./login.html?ReturnUrl=./list.html')
-            }else {
+            } else {
                 layer.open({
                     title: '失败提示框'
                     , content: '商品添加失败'
-                    ,time:3000
+                    , time: 3000
                 });
             }
 
 
         })
+    }
+
+
+    /******懒加载**** */
+    // 当前需要的高度===滚动条距离顶部的高度+ 可视区的高度
+    // 需要获取新的数据     当前实际内容高度<滚动条距离顶部的高度+ 可视区的高度
+
+    lazyLoader = () => {
+        // 需要滚动条高度,可视区高度,实际内容高度
+        let top = document.documentElement.scrollTop;
+        // console.log(top, 't');
+        let cliH = document.documentElement.clientHeight;
+        // console.log(cliH, 'c');
+        let conH = this.$('.sk_container').offsetHeight;
+        // console.log(conH);
+        // 但滚动条高度+可视区的高度> 实际内容高度时,就加载新数据
+        if (top + cliH > (conH + 450)) {
+            // console.log(111);
+            // this.getData(++this.currentPage)
+            // 一瞬间就满足条件,会不停的触发数据加载,使用节流和防抖
+
+            // 如果是锁着的,就结束代码执行
+            if (this.lock) return;
+            this.lock = true;
+            // 指定时间开锁,才能进行下次数据清除
+            setTimeout(() => {
+                this.lock = false;
+            }, 1000)
+            // console.log(1111);
+            this.getDate(++this.currentPage)
+        }
+
     }
 
     /******封装获取节点的方法*******/
